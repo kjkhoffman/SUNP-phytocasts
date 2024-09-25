@@ -1,0 +1,175 @@
+Quarto markdown for Sunapee Buoy data
+
+```{r libraries}
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(naniar)
+library(hms)
+```
+
+```{r read in data}
+#oldbuoy first
+headers = read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/SUNP_buoy_wq.csv", skip = 1, header = F, nrows = 1, as.is = T)
+df = read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/SUNP_buoy_wq.csv", skip = 4, header = F)
+colnames(df)= headers
+oldbuoy <- df
+#new buoy
+headers_new <-  read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/CR6_SUNP_SUNP_buoy_wq.csv", skip = 1, header = F, nrows = 1, as.is = T)
+df_new <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/CR6_SUNP_SUNP_buoy_wq.csv", skip = 4, header = F)
+colnames(df_new) <-  headers_new
+newbuoy <- df_new
+```
+
+```{r new buoy plots}
+newbuoy$Reservoir <- newbuoy$RECORD
+newbuoy$Site <- newbuoy$RECORD
+newbuoy <- newbuoy %>% mutate(Reservoir = "SNP") %>% 
+  mutate(Site = "buoy") %>% 
+  mutate(DateTime = TIMESTAMP) 
+
+newbuoy_temp <- newbuoy %>%
+  select(c(wtr_surface, wtr_1, wtr_2, wtr_3, wtr_4, wtr_5, wtr_6, wtr_7, wtr_8, wtr_9, wtr_10, DateTime, Site, Reservoir)) %>% 
+  pivot_longer(
+    cols = starts_with("wtr_"), 
+    names_to = "depth", 
+    values_to = "temperature"
+  ) %>% mutate(Depth_m = (ifelse(depth == "wtr_surface", 0.1,
+                ifelse(depth == "wtr_1", 1, 
+                             ifelse(depth == "wtr_2", 2, 
+                                    ifelse(depth == "wtr_3", 3, 
+                                           ifelse(depth == "wtr_4", 4, 
+                                                  ifelse(depth == "wtr_5", 5, 
+                                                         ifelse(depth == "wtr_6", 6, 
+                                                                ifelse(depth == "wtr_7", 7, 
+                                                                       ifelse(depth == "wtr_8", 8, 
+                                                                              ifelse(depth == "wtr_9", 9, 10))))))))))))
+
+heatmap_EDI(newbuoy_temp, "SNP", "buoy", "temperature")
+```
+
+```{r old plots}
+head(oldbuoy)
+oldbuoy$Reservoir <- oldbuoy$RECORD
+oldbuoy$Site <- oldbuoy$RECORD
+oldbuoy <- oldbuoy %>% mutate(Reservoir = "SNP") %>% 
+  mutate(Site = "buoy") %>% 
+  mutate(DateTime = TIMESTAMP) 
+
+
+oldbuoy_temp <- oldbuoy %>% select(c(wtr_surface, wtr_1, wtr_2, wtr_3, wtr_4, wtr_5, wtr_6, wtr_7, wtr_8, wtr_9, wtr_10, DateTime, Site, Reservoir)) %>% 
+  pivot_longer(
+    cols = starts_with("wtr_"), 
+    names_to = "depth", 
+    values_to = "temperature"
+  ) %>% mutate(Depth_m = (ifelse(depth == "wtr_surface", 0.1,
+                ifelse(depth == "wtr_1", 1, 
+                             ifelse(depth == "wtr_2", 2, 
+                                    ifelse(depth == "wtr_3", 3, 
+                                           ifelse(depth == "wtr_4", 4, 
+                                                  ifelse(depth == "wtr_5", 5, 
+                                                         ifelse(depth == "wtr_6", 6, 
+                                                                ifelse(depth == "wtr_7", 7, 
+                                                                       ifelse(depth == "wtr_8", 8, 
+                                                                              ifelse(depth == "wtr_9", 9, 10))))))))))))
+
+heatmap_EDI(oldbuoy_temp, "SNP", "buoy", "temperature")
+```
+```{r bind old and new}
+all_temp <- rbind(newbuoy_temp, oldbuoy_temp)
+heatmap_EDI(all_temp, "SNP", "buoy", "temperature")
+```
+```{r look at just the surface temp for the last 3 years}
+new_surface <- newbuoy %>% select(TIMESTAMP, wtr_surface, wtr_1, EXO_wtr_shallow, EXO_Chla_RFU_shallow, EXO_Chla_shallow, EXO_fDOM_RFU_shallow)
+old_surface <- oldbuoy %>% 
+  select(TIMESTAMP, wtr_surface, wtr_1, EXO_wtr, Chla_RFU_1, Chla_1, fDOM_RFU_1) %>% 
+  mutate(EXO_wtr_shallow = EXO_wtr) %>% 
+  mutate(EXO_Chla_RFU_shallow = Chla_RFU_1) %>% 
+  mutate(EXO_Chla_shallow = Chla_1) %>% 
+  mutate(EXO_fDOM_RFU_shallow = fDOM_RFU_1) %>% 
+  select(-c(EXO_wtr, Chla_RFU_1, Chla_1, fDOM_RFU_1))
+
+surface_interests <- rbind(new_surface, old_surface)
+
+surface_interests$TIMESTAMP <- as_datetime(surface_interests$TIMESTAMP)
+str(surface_interests)
+#na_strings <- c("NA", "N A", "N / A", "N/A", "N/ A", "Not Available", "NOt available", "", "not reported", "NR", "NAN", "NaN", "Nan", "nan") # this runs as a forloop, so don't give it long lists unless necessary
+na_strings <- c("NA", "NAN", "NaN")
+
+test1 <- surface_interests %>% 
+  mutate(year = year(TIMESTAMP)) %>% 
+  mutate(doy = yday(TIMESTAMP))
+
+
+  test <- test1 %>% 
+    filter(TIMESTAMP > "2021-07-01 00:00:00" & TIMESTAMP<"2021-10-01 00:00:00" | TIMESTAMP > "2022-06-01 00:00:00" & TIMESTAMP < "2022-10-01 00:00:00" | TIMESTAMP > "2023-06-01 00:00:00" & TIMESTAMP < "2023-10-01 00:00:00" | TIMESTAMP > "2024-06-01 00:00:00" & TIMESTAMP < "2024-10-01 00:00:00")
+  
+ test1 %>% mutate(time = as_hms(ymd_hms(TIMESTAMP)))
+  
+  
+ new <- replace_with_na(test, replace = list(wtr_surface = c("NA", "NAN", "NaN"), 
+                                             wtr_1 = c("NaN"), 
+                                             EXO_wtr_shallow = c("NAN")))    
+new <- new %>% mutate(year = year(TIMESTAMP)) %>% 
+  mutate(doy = yday(TIMESTAMP)) %>% 
+  mutate(hour = hour(TIMESTAMP)) %>% 
+  mutate(minute = minute(TIMESTAMP)) #%>% 
+  filter(hour == "15") %>% 
+  filter(minute == "0")
+  
+attempt <- new %>% filter(year == "2024")
+new %>% filter(year == 2024) %>% 
+  filter(doy > 180 & doy < 220) %>% ggplot(aes(doy, wtr_1, color = as.factor(year))) + geom_point() + scale_y_continuous(breaks = c(0, 10, 15, 20, 25, 26, 27, 28, 29, 30))#+ geom_smooth()
+
+new %>% ggplot(aes(TIMESTAMP, wtr_1)) + geom_point()
+new %>% ggplot(aes(TIMESTAMP, EXO_wtr_shallow)) + geom_line() + geom_smooth()
+
+
+```
+
+```{r add additional years}
+old <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/threepmonly.csv")
+
+old_all <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/temperature_all.csv")
+excludedups <- old_all %>% 
+  #filter(year != 2007 & year != 2008) %>% 
+  select(c("datetime", "temperature", "year", "doy", "hour", "minute"))
+
+head(new)
+comb_sub <- new %>% select(c("TIMESTAMP", "wtr_1", "year", "doy", "hour", "minute")) %>% 
+  mutate(datetime = TIMESTAMP) %>% 
+  mutate(temperature = wtr_1) %>% 
+  select(-c(TIMESTAMP, wtr_1))
+combined <- rbind(comb_sub, excludedups) #%>% 
+combined <- combined %>% 
+  mutate(day = date(datetime))
+combined_daily <- unique(combined_daily)
+
+combined_daily <- combined %>% 
+  group_by(day) %>% 
+  mutate(daily_mean_temp = mean(temperature)) %>% 
+  select(c("daily_mean_temp", "day", "doy", "year"))
+
+#write_csv("combined_daily_mean_1m.csv", combined_daily)
+#temperature at 3pm
+# combined %>%
+#   #filter(doy > 150 & doy < 300) %>% filter(hour == "15") %>% 
+#   filter(minute == "0") %>% 
+#   ggplot(aes(doy, temperature, color = as.factor(year))) + geom_point(aes(alpha = 0.1)) + scale_y_continuous(breaks = c(0, 10, 15, 20, 25, 26, 27, 28, 29, 30)) + #+ geom_smooth()
+# scale_color_manual(values = c("gray", "gray", "gray", "blue", "gray", "gray","gray", "gray", "gray", "gray","gray", "gray", "gray", "gray",  "gray", "gray", "gray","red"))
+
+
+#average daily temperature
+combined_daily %>%
+  #filter(doy > 150 & doy < 300) %>% filter(hour == "15") %>% 
+  #filter(minute == "0") %>% 
+  ggplot(aes(doy, daily_mean_temp, color = as.factor(year))) + geom_point(aes(alpha = 0.3)) + scale_y_continuous(breaks = c(0, 5, 10, 15, 20, 25, 30)) + #+ geom_smooth()
+scale_color_manual(values = c("gray", "gray", "gray", "gray", "gray", "gray","gray", "gray", "gray", "gray","gray", "gray", "gray", "gray",  "gray", "gray", "lightblue","red")) +  xlab("Day of Year")+
+  ylab("Mean Daily Water Temperature at the Buoy at ~1m depth (ºC)") + labs(color = "Year") + guides(alpha = "none") +
+  theme_bw()
+
+ggsave("buoywatertemp.jpg", width = 6, height = 5, units = "in")
+
+rm(all_temp, comb_sub, df, df_new, excludedups, headers, headers_new, new_surface, old_all, surface_interests, oldbuoy, oldbuoy_temp, test1, combined, old_surface)
+```
+

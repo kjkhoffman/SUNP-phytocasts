@@ -1,0 +1,116 @@
+Read in ProDSS data!
+
+```{r libraries}
+library(janitor)
+library(tidyverse)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+
+```{r}
+ProDSS2024a <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/ProDSS/ProDSS_Summer2024.csv")
+ProDSS2024b <- clean_names(ProDSS2024a)
+head(ProDSS2024b)
+ProDSS2024b$time <- hms::as_hms(ProDSS2024b$time)
+ProDSS2024 <- ProDSS2024b %>% 
+  mutate(date = lubridate::mdy(as.character(ProDSS2024b$date))) %>% 
+  mutate(hour = hour(time))
+ProDSS2024
+```
+
+```{r make one plot}
+ProDSS2024 %>% 
+  filter(depth_m == "0.1") %>% 
+  filter(site == "Midge" | site == "Harbor") %>% 
+  ggplot(aes(x = date, y = deg_c, color = site)) + 
+  theme_bw() + 
+  scale_y_continuous(breaks = c(18, 20, 22, 24, 26, 28, 29)) +
+  scale_color_manual(values = c("lightblue","red"), labels = c('Sunapee Harbor','Herrick Cove')) +
+  #scale_color_discrete(labels = c('Sunapee Harbor','Herrick Cove')) +
+  geom_line() + 
+  geom_point()+ 
+  ylab("Temperature (ºC)") + 
+  xlab("Date")+  
+  labs(color = "Site") 
+
+ggsave("SHandHCwatertemp.jpg", width = 6, height = 3, units = "in")
+
+ProDSS2024 %>% 
+  filter(depth_m == "0.1") %>% 
+  #filter(site == "Harbor") %>% 
+  ggplot(aes(x = date, y = deg_c, color = hour)) + 
+  geom_point()
+
+ProDSS2024 %>% 
+  filter(date == "2024-06-13") %>% 
+  filter(site == "Buoy") %>% 
+  ggplot(aes(x = deg_c, y = depth_m)) + 
+  geom_point()
+```
+Heatmaps for chla, temp and DO
+```{r heatmaps}
+#add a "reservoir" column
+
+ProDSS2024 <- ProDSS2024 %>% mutate(p_h = "SNP") %>% 
+  mutate(Reservoir = p_h) %>% 
+  rename(DateTime = date, 
+         Site = site, 
+         Depth_m = depth_m)
+heatmap_EDI(ProDSS2024, "SNP", "Buoy", "do_perc") +  xlab("Date")+
+  ylab("Dissolved Oxygen (% saturation)") + ggtitle("LSPA Buoy - Dissolved Oxygen") + labs(fill = "DO %")
+
+heatmap_EDI(ProDSS2024, "SNP", "Buoy", "chla_ug_l") +  xlab("Date")+
+  ylab("Depth (m)") + ggtitle("")+ #ggtitle("LSPA Buoy - Chlorophyll a") + 
+  labs(fill = "ug/L")
+ggsave("buoychla_2024_heatmap.jpg", width = 6, height = 4, units = "in")
+
+heatmap_EDI(ProDSS2024, "SNP", "Buoy", "deg_c") +  xlab("Date")+
+  ylab("Depth (m)") + ggtitle("")+ #ggtitle("LSPA Buoy - Chlorophyll a") + 
+  labs(fill = "ºC")
+
+heatmap_EDI(ProDSS2024, "SNP", "Buoy", "phycoc_ug_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Buoy", "do_mg_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Buoy", "spc_uscm") +  xlab("Date")+
+  ylab("Depth (m)") + ggtitle("")+ #ggtitle("LSPA Buoy - Chlorophyll a") + 
+  labs(fill = "us/cm")
+
+heatmap_EDI(ProDSS2024, "SNP", "Buoy", "ntu") +  xlab("Date")+
+  ylab("Depth (m)") + ggtitle("")+ #ggtitle("LSPA Buoy - Chlorophyll a") + 
+  labs(fill = "NTU")
+```
+
+
+```{r}
+heatmap_EDI(ProDSS2024, "SNP", "Midge", "do_perc")
+
+heatmap_EDI(ProDSS2024, "SNP", "Midge", "chla_ug_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Midge", "deg_c")
+
+heatmap_EDI(ProDSS2024, "SNP", "Midge", "phycoc_ug_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Midge", "do_mg_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Midge", "spc_uscm")
+```
+
+```{r}
+heatmap_EDI(ProDSS2024, "SNP", "Harbor", "do_perc")
+
+heatmap_EDI(ProDSS2024, "SNP", "Harbor", "chla_ug_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Harbor", "deg_c")
+
+heatmap_EDI(ProDSS2024, "SNP", "Harbor", "phycoc_ug_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Harbor", "do_mg_l")
+
+heatmap_EDI(ProDSS2024, "SNP", "Harbor", "spc_uscm")
+
+```
+
+
+
