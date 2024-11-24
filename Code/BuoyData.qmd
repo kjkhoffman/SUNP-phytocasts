@@ -13,12 +13,21 @@ library(hms)
 headers = read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/SUNP_buoy_wq.csv", skip = 1, header = F, nrows = 1, as.is = T)
 df = read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/SUNP_buoy_wq.csv", skip = 4, header = F)
 colnames(df)= headers
+# headers = read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/temp1m.csv", skip = 0, header = F, nrows = 1, as.is = T)
+# df = read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/temp1m.csv", skip = 1, header = F)
+# colnames(df)= headers
 oldbuoy <- df
 #new buoy
 headers_new <-  read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/CR6_SUNP_SUNP_buoy_wq.csv", skip = 1, header = F, nrows = 1, as.is = T)
 df_new <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/CR6_SUNP_SUNP_buoy_wq.csv", skip = 4, header = F)
 colnames(df_new) <-  headers_new
 newbuoy <- df_new
+# buoy2023 <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/SUNP_buoy_wq.csv", skip = 4, header = F)
+# headers_2023 <-  read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/SUNP_buoy_wq.csv", skip = 1, header = F, nrows = 1, as.is = T)
+# colnames(buoy2023) <-  headers_2023
+#read in from Github: 
+
+
 ```
 
 ```{r new buoy plots}
@@ -46,6 +55,23 @@ newbuoy_temp <- newbuoy %>%
                                                                               ifelse(depth == "wtr_9", 9, 10))))))))))))
 
 heatmap_EDI(newbuoy_temp, "SNP", "buoy", "temperature")
+```
+```{r}
+test <- sunpwaterdata %>% 
+  mutate(day = date(TIMESTAMP)) %>% 
+  mutate(DateTime = ymd_hms(TIMESTAMP))
+test2 <- test %>% 
+  group_by(day) %>% 
+  mutate(daily_mean_batt = mean(BattV)) %>% 
+  select(day, daily_mean_batt) %>% 
+  unique()
+
+
+test2 %>% filter(day > "2024-10-01") %>% 
+  ggplot(aes(x = day, y = daily_mean_batt)) + geom_point()
+
+
+
 ```
 
 ```{r old plots}
@@ -75,10 +101,12 @@ oldbuoy_temp <- oldbuoy %>% select(c(wtr_surface, wtr_1, wtr_2, wtr_3, wtr_4, wt
 
 heatmap_EDI(oldbuoy_temp, "SNP", "buoy", "temperature")
 ```
+
 ```{r bind old and new}
 all_temp <- rbind(newbuoy_temp, oldbuoy_temp)
 heatmap_EDI(all_temp, "SNP", "buoy", "temperature")
 ```
+
 ```{r look at just the surface temp for the last 3 years}
 new_surface <- newbuoy %>% select(TIMESTAMP, wtr_surface, wtr_1, EXO_wtr_shallow, EXO_Chla_RFU_shallow, EXO_Chla_shallow, EXO_fDOM_RFU_shallow)
 old_surface <- oldbuoy %>% 
@@ -114,8 +142,8 @@ new <- new %>% mutate(year = year(TIMESTAMP)) %>%
   mutate(doy = yday(TIMESTAMP)) %>% 
   mutate(hour = hour(TIMESTAMP)) %>% 
   mutate(minute = minute(TIMESTAMP)) #%>% 
-  filter(hour == "15") %>% 
-  filter(minute == "0")
+  # filter(hour == "15") %>% 
+  # filter(minute == "0")
   
 attempt <- new %>% filter(year == "2024")
 new %>% filter(year == 2024) %>% 
@@ -128,18 +156,28 @@ new %>% ggplot(aes(TIMESTAMP, EXO_wtr_shallow)) + geom_line() + geom_smooth()
 ```
 
 ```{r add additional years}
-old <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/threepmonly.csv")
+# old <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/threepmonly.csv")
 
-old_all <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/temperature_all.csv")
+# old_all <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/temperature_all.csv")
+# excludedups <- old_all %>% 
+#   #filter(year != 2007 & year != 2008) %>% 
+#   select(c("datetime", "temperature", "year", "doy", "hour", "minute"))
+old_all <- read.csv("~/GitHubRepos/CareyLabVT/SUNP-phytocasts/Data/temp1m.csv")
 excludedups <- old_all %>% 
   #filter(year != 2007 & year != 2008) %>% 
-  select(c("datetime", "temperature", "year", "doy", "hour", "minute"))
+  select(c("datetime", "temperature")) %>% 
+  mutate(year = year(datetime)) %>% 
+  mutate(doy = yday(datetime)) %>% 
+  mutate(hour = hour(datetime)) %>% 
+  mutate(minute = minute(datetime))
+  
 
 head(new)
 comb_sub <- new %>% select(c("TIMESTAMP", "wtr_1", "year", "doy", "hour", "minute")) %>% 
   mutate(datetime = TIMESTAMP) %>% 
   mutate(temperature = wtr_1) %>% 
   select(-c(TIMESTAMP, wtr_1))
+#write_csv(file = "buoy_all.csv", comb_sub)
 combined <- rbind(comb_sub, excludedups) #%>% 
 combined <- combined %>% 
   mutate(day = date(datetime))
@@ -149,8 +187,8 @@ combined_daily <- combined %>%
   group_by(day) %>% 
   mutate(daily_mean_temp = mean(temperature)) %>% 
   select(c("daily_mean_temp", "day", "doy", "year"))
-
-#write_csv("combined_daily_mean_1m.csv", combined_daily)
+#combined_daily <- as.data.frame(combined_daily)
+write.csv("combined_daily_mean_1m.csv", combined_daily)
 #temperature at 3pm
 # combined %>%
 #   #filter(doy > 150 & doy < 300) %>% filter(hour == "15") %>% 
@@ -164,11 +202,20 @@ combined_daily %>%
   #filter(doy > 150 & doy < 300) %>% filter(hour == "15") %>% 
   #filter(minute == "0") %>% 
   ggplot(aes(doy, daily_mean_temp, color = as.factor(year))) + geom_point(aes(alpha = 0.3)) + scale_y_continuous(breaks = c(0, 5, 10, 15, 20, 25, 30)) + #+ geom_smooth()
-scale_color_manual(values = c("gray", "gray", "gray", "gray", "gray", "gray","gray", "gray", "gray", "gray","gray", "gray", "gray", "gray",  "gray", "gray", "lightblue","red")) +  xlab("Day of Year")+
+scale_color_manual(values = c("gray", "gray", "gray", "gray", "gray", "gray","gray", "gray", "gray", "gray", "lightblue","red","gray", "gray", "gray", "gray",  "gray", "gray", "lightblue","red")) +  xlab("Day of Year")+
   ylab("Mean Daily Water Temperature at the Buoy at ~1m depth (ºC)") + labs(color = "Year") + guides(alpha = "none") +
   theme_bw()
 
-ggsave("buoywatertemp.jpg", width = 6, height = 5, units = "in")
+test <- combined_daily %>%
+  mutate(year2 = (ifelse(year <2023, "2007-2022", year))) %>% 
+  #filter(doy > 150 & doy < 300) %>% filter(hour == "15") %>% 
+  #filter(minute == "0") %>% 
+  ggplot(aes(doy, daily_mean_temp, color = as.factor(year2))) + geom_point(aes(alpha = 0.3)) + scale_y_continuous(breaks = c(0, 5, 10, 15, 20, 25, 30)) + #+ geom_smooth()
+scale_color_manual(values = c("gray", "lightblue", "red", "gray", "gray", "gray","gray", "gray", "gray", "gray", "lightblue","red","gray", "gray", "gray", "gray",  "gray", "gray", "lightblue","red")) +  xlab("Day of Year")+
+  ylab("Mean Daily Water Temperature at the Buoy at ~1m depth (ºC)") + labs(color = "Year") + guides(alpha = "none") +
+  theme_bw()
+test
+ggsave("buoywatertemp_new.jpg", width = 6, height = 5, units = "in")
 
 rm(all_temp, comb_sub, df, df_new, excludedups, headers, headers_new, new_surface, old_all, surface_interests, oldbuoy, oldbuoy_temp, test1, combined, old_surface)
 ```
